@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: one scrolling project page under a sticky anchor bar. Reading column 720px, media and tables break out to 1080px.
+/* Layout: one scrolling project page under a sticky anchor bar. Reading column 900px, media and tables break out to 1080px.
    The viewer stage stays dark in both themes because it frames photographs and BEV rasters. */
 :root {
   --bg: #eef1f4; --surface: #ffffff; --fg: #10202c; --muted: #54636f; --line: #cfd6dd;
@@ -37,7 +37,7 @@ nav a { color: var(--muted); text-decoration: none; }
 nav a:hover, nav a:focus-visible { color: var(--accent); }
 main { max-width: 1080px; margin: 0 auto; padding-block: 56px 72px; display: grid; gap: 72px; }
 main > * { min-width: 0; }
-.col { max-width: 720px; }
+.col { max-width: 900px; }
 section { display: grid; gap: 20px; scroll-margin-top: 64px; }
 section > *, .sub > * { min-width: 0; }
 .sub { display: grid; gap: 12px; }
@@ -61,7 +61,7 @@ header { display: grid; gap: 18px; }
 .stats dt { font: 700 34px/1.1 var(--display); font-variant-numeric: tabular-nums; }
 .stats dd { margin: 0; font-size: 14px; line-height: 1.4; color: var(--muted); }
 figure { margin: 0; display: grid; gap: 10px; min-width: 0; }
-figcaption, .note { font-size: 14px; line-height: 1.5; color: var(--muted); max-width: 78ch; }
+figcaption, .note { font-size: 14px; line-height: 1.5; color: var(--muted); max-width: 900px; }
 .diagram { overflow-x: auto; }
 .diagram svg { display: block; width: 100%; min-width: 860px; height: auto; }
 svg text { font-family: var(--body); fill: var(--fg); font-size: 13px; }
@@ -136,7 +136,7 @@ footer p { max-width: 70ch; }
 
 <div class="gut"><main>
   <header id="overview">
-    <p class="eyebrow">Independent research project · Oct – Nov 2026 · one RTX 4060, 8 GB</p>
+    <p class="eyebrow">Independent research project · one RTX 4060, 8 GB</p>
     <h1>Qwen-Drive Student</h1>
     <p class="subtitle">Distilling a driving VLM's 3D perception into a small camera-only model</p>
     <p class="author">Ajay Narasimha Mopidevi</p>

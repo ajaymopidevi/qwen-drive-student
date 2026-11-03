@@ -1,5 +1,5 @@
 {
- "base_url": "REPLACE_WITH_RELEASE_URL",
+ "base_url": "https://huggingface.co/ajaymopidevi/qwen-drive-student/resolve/main",
  "files": [
   {
    "path": "cache/teacher/v1.0-trainval/tap_stats_s1_CB.npz",

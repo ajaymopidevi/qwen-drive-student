@@ -154,9 +154,10 @@ footer p { max-width: 70ch; }
     <dl class="stats">
       <div><dt>105 ms</dt><dd>per six-camera frame, down from about 4 s</dd></div>
       <div><dt>24M</dt><dd>student parameters, replacing the 4B VLM</dd></div>
-      <div><dt>93%</dt><dd>of teacher mAP, val_quick (0.434 vs 0.467)</dd></div>
+      <div><dt>93% / 95%</dt><dd>of teacher mAP / NDS, val_quick (0.434 vs 0.467, 0.420 vs 0.445)</dd></div>
       <div><dt>103% / 97%</dt><dd>of teacher map / occupancy mIoU, scored against GT</dd></div>
     </dl>
+    <p class="note col">Why map beats the teacher: the student's encoder and heads were fine-tuned with a direct ground-truth map loss as well as distillation, on the same rasters used for scoring, and that loss added 0.025 mIoU when it was introduced. The lead is only on val_quick (0.597 vs 0.584). On full validation an earlier chain stayed below the teacher (0.591 vs 0.601), and the final model has not been run there.</p>
   </section>
 
   <section id="method">
@@ -258,21 +259,6 @@ footer p { max-width: 70ch; }
         </tbody>
       </table></div>
       <p class="note">val_quick is 1,201 frames; map and occupancy use every third frame. The final model has not had a full-validation run. Only its weights are released. The two tables use different frames, so compare within a table, not across tables.</p>
-    </div>
-    <div class="sub">
-      <h3>Accuracy gate · final model vs the exact fold engine</h3>
-      <div class="tbl"><table>
-        <thead><tr><th>Metric</th><th>Change</th><th>95% lower bound</th><th>Floor</th><th class="t">Result</th></tr></thead>
-        <tbody>
-          <tr><td>mAP</td><td>−0.0021</td><td>−0.0043</td><td>−0.0057</td><td class="t">pass</td></tr>
-          <tr><td>NDS</td><td>−0.0017</td><td>−0.0036</td><td>−0.0055</td><td class="t">pass</td></tr>
-          <tr><td>Map mIoU, val_quick</td><td>−0.0016</td><td>−0.0032</td><td>−0.0078</td><td class="t">pass</td></tr>
-          <tr><td>Map mIoU, 120 further scenes</td><td>−0.0016</td><td>−0.0024</td><td>−0.0078</td><td class="t">pass</td></tr>
-          <tr><td>Occ mIoU, val_quick</td><td>−0.0007</td><td>−0.0016</td><td>−0.0037</td><td class="t">pass</td></tr>
-          <tr><td>Occ mIoU, 120 further scenes</td><td>−0.0015</td><td>−0.0025</td><td>−0.0036</td><td class="t">pass</td></tr>
-        </tbody>
-      </table></div>
-      <p class="note">Paired scene bootstrap. The floor is 1.3% of the reference, applied to the lower bound, so a change passes only when the data rule out a larger loss. The further scenes are val_rest at every ninth frame.</p>
     </div>
   </section>
 

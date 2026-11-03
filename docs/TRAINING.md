@@ -18,7 +18,7 @@ E52=<occupancy refiner engine from step 3>
 SKIP6=0,1,2,3,4,5
 ```
 
-The steps follow the repository's folders. Steps 3 and 4 interleave: the warped block in step 3 needs the head checkpoint from step 4b.
+The steps follow the repository's folders. Steps 3 and 4 interleave: the voxel block in step 3 needs the head checkpoint from step 4b.
 
 ## 1. Dataset curation
 
@@ -85,7 +85,7 @@ python -m qdistill.warp_grid block-engine --b 25.6 --out weights/engines/block_w
 python scripts/head/distill_voxel_block.py --run-name block_z8_warp --init-block runs/block_z8/best.pt --z8-compress stride6 \
     --warp-grid 25.6 --warp-head runs/ft_warp/final.pt --ring-weight 4 --pred-weight 0.5 --ckpt-head --checkpoint-layers \
     --lr 1e-4 --epochs 2 --save-every 250 --resume
-# zhalf: build the half-height block engine
+# zhalf: build the voxel block engine
 python -m qdistill.zhalf build2 --ckpt runs/block_z8_warp/best.pt --out weights/engines/block_z8_fp16.engine --grid 150
 ```
 
@@ -124,7 +124,7 @@ python scripts/sparse_queries/train_enc_recover.py --run-name ft_warp $FT --w-oc
     --init-heads runs/ft_numerics/final.pt --front-trt <engines> --train-heads map_seg,uvtr_occ_fuse,occ_pred_head --heads-lr 2e-5 \
     --warp-grid weights/engines/block_warp150_fp16.engine --warp-b 25.6
 
-# c. half-height block, then trainable UVTR projections (the released fine_tune.pt)
+# c. voxel block, then trainable UVTR projections (the released fine_tune.pt)
 python scripts/sparse_queries/train_enc_recover.py --run-name ft_z8 $FT --w-occ 15 --steps 4500 --init-enc runs/ft_warp/final.pt \
     --init-heads runs/ft_warp/final.pt --front-trt <engines> --train-heads map_seg,uvtr_occ_fuse,occ_pred_head --heads-lr 2e-5 \
     --warp-grid weights/engines/block_warp150_fp16.engine --warp-b 25.6 --warp-z8 weights/engines/block_z8_fp16.engine

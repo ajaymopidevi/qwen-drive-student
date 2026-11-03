@@ -20,7 +20,7 @@ val_quick: 30 held-out nuScenes scenes, 1,201 frames. Map and occupancy use ever
 | Backbone distillation, 4K frames | 0.422 | 0.407 | | | ~1,250 ms |
 | Head distillation and TensorRT engines | 0.419 | 0.404 | 0.563 | 0.283 | 416 ms |
 | Sparse queries, heading refiner and deployment fine-tune | 0.433 | 0.412 | 0.592 | 0.286 | 184 ms |
-| Warped grid, half-height block, fused heads, exact folds | 0.436 | 0.422 | 0.599 | 0.283 | 118 ms |
+| Warped BEV grid, fused heads, exact folds | 0.436 | 0.422 | 0.599 | 0.283 | 118 ms |
 | INT8 backbone | 0.434 | 0.420 | 0.597 | 0.283 | 116 ms |
 | **Glue removal (final model)** | **0.434** | **0.420** | **0.597** | **0.283** | **105 ms** |
 
@@ -29,8 +29,8 @@ val_quick: 30 held-out nuScenes scenes, 1,201 frames. Map and occupancy use ever
   It excludes JPEG decode, which adds about 22 ms (126.3 ms in total).
 - Detection uses the teacher's 7-class taxonomy and its NDS convention, without the attribute term. Map is scored against
   nuScenes map-expansion rasters and occupancy against Occ3D, on the camera mask.
-- The final chain has not been run on the full validation set. An earlier, slower chain from the same lineage scored mAP 0.407,
-  NDS 0.403, map 0.591 and occupancy 0.286 on full validation (6,019 frames), against 0.439, 0.428, 0.601 and 0.287 for the teacher.
+- Full nuScenes validation (6,019 frames; map and occupancy on every third frame): the final model scores mAP 0.405, NDS 0.402,
+  map 0.596 and occupancy 0.282, against 0.439, 0.428, 0.601 and 0.287 for the teacher (92%, 94%, 99% and 98%).
 
 Only the final model's weights are released. The numbers and the accuracy gate are in [results/metrics.json](results/metrics.json).
 

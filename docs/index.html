@@ -131,7 +131,7 @@ footer p { max-width: 70ch; }
 <body>
 
 <nav class="gut" aria-label="Sections"><div>
-  <a href="#overview">Overview</a><a href="#method">Method</a><a href="#visualizations">Visualizations</a><a href="#results">Results</a><a href="#latency">Latency</a><a href="#code">Code</a>
+  <a href="#overview">Overview</a><a href="#method">Method</a><a href="#visualizations">Visualizations</a><a href="#results">Results</a><a href="#latency">Latency</a><a href="#code">Code</a><a href="#next">Next steps</a>
 </div></nav>
 
 <div class="gut"><main>
@@ -150,14 +150,14 @@ footer p { max-width: 70ch; }
 
   <section aria-labelledby="tldr">
     <h2 id="tldr">TL;DR</h2>
-    <p class="tldr col">Qwen-Drive-1.0 gets 3D detection, BEV map segmentation and 3D occupancy from six cameras, on top of a 4-billion-parameter vision-language model that takes about 4 seconds a frame on this GPU. A 24M-parameter student replaces the VLM, and the perception head was rebuilt block by block under pre-set accuracy gates. The final model runs in 105 ms and keeps 93% of the teacher's detection mAP on held-out scenes.</p>
+    <p class="tldr col">Qwen-Drive-1.0 gets 3D detection, BEV map segmentation and 3D occupancy from six cameras, on top of a 4-billion-parameter vision-language model that takes about 4 seconds a frame on this GPU. A 24M-parameter student replaces the VLM, and the perception head was rebuilt block by block under pre-set accuracy gates. The final model runs in 105 ms and keeps 92% of the teacher's detection mAP on the full nuScenes validation set.</p>
     <dl class="stats">
       <div><dt>105 ms</dt><dd>per six-camera frame, down from about 4 s</dd></div>
       <div><dt>24M</dt><dd>student parameters, replacing the 4B VLM</dd></div>
-      <div><dt>93% / 95%</dt><dd>of teacher mAP / NDS, val_quick (0.434 vs 0.467, 0.420 vs 0.445)</dd></div>
-      <div><dt>103% / 97%</dt><dd>of teacher map / occupancy mIoU, scored against GT</dd></div>
+      <div><dt>92% / 94%</dt><dd>of teacher mAP / NDS, full nuScenes val (0.405 vs 0.439, 0.402 vs 0.428)</dd></div>
+      <div><dt>99% / 98%</dt><dd>of teacher map / occupancy mIoU, full val, scored against GT (0.596 vs 0.601, 0.282 vs 0.287)</dd></div>
     </dl>
-    <p class="note col">Why map beats the teacher: the student's encoder and heads were fine-tuned with a direct ground-truth map loss as well as distillation, on the same rasters used for scoring, and that loss added 0.025 mIoU when it was introduced. The lead is only on val_quick (0.597 vs 0.584). On full validation an earlier chain stayed below the teacher (0.591 vs 0.601), and the final model has not been run there.</p>
+    <p class="note col">On full validation the student is below the teacher on every head. On val_quick its map mIoU is above the teacher's (0.597 vs 0.584), because its encoder and heads were also fine-tuned with a direct ground-truth map loss, which added 0.025 mIoU when it was introduced; that lead does not hold on full validation (0.596 vs 0.601).</p>
   </section>
 
   <section id="method">
@@ -188,13 +188,13 @@ footer p { max-width: 70ch; }
     <div class="sub">
       <h3>Runtime chain</h3>
       <figure>
-        <div class="diagram"><svg viewBox="0 0 1080 250" role="img" aria-label="Runtime chain: six cameras enter one INT8 student engine; a geometry path runs voxel pooling, a half-height voxel block and a BEV encoder into a dense engine for map and occupancy and into a detection decoder that also samples image levels; a heading refiner follows detection.">
+        <div class="diagram"><svg viewBox="0 0 1080 250" role="img" aria-label="Runtime chain: six cameras enter one INT8 student engine; a geometry path runs voxel pooling, a voxel block and a BEV encoder into a dense engine for map and occupancy and into a sparse-query detection decoder that also samples image levels; a heading refiner follows detection.">
           <rect class="new" x="0" y="50" width="180" height="150" rx="3"/><text class="b" x="90" y="108" text-anchor="middle">Student engine</text><text class="m" x="90" y="128" text-anchor="middle">INT8 backbone</text><text class="m" x="90" y="144" text-anchor="middle">folded neck + depth</text><text class="m" x="90" y="160" text-anchor="middle">21 ms</text>
           <rect class="box" x="230" y="30" width="150" height="62" rx="3"/><text class="b" x="305" y="56" text-anchor="middle">Voxel pooling</text><text class="m" x="305" y="74" text-anchor="middle">CUDA · 11 ms</text>
-          <rect class="new" x="430" y="30" width="170" height="62" rx="3"/><text class="b" x="515" y="56" text-anchor="middle">Half-height voxel block</text><text class="m" x="515" y="74" text-anchor="middle">warped 150² · 19 ms</text>
+          <rect class="new" x="430" y="30" width="170" height="62" rx="3"/><text class="b" x="515" y="56" text-anchor="middle">Voxel block</text><text class="m" x="515" y="74" text-anchor="middle">warped 150² · 19 ms</text>
           <rect class="new" x="650" y="30" width="150" height="62" rx="3"/><text class="b" x="725" y="56" text-anchor="middle">BEV encoder ×6</text><text class="m" x="725" y="74" text-anchor="middle">14 ms</text>
           <rect class="new" x="850" y="30" width="230" height="62" rx="3"/><text class="b" x="965" y="56" text-anchor="middle">Dense engine</text><text class="m" x="965" y="74" text-anchor="middle">occupancy + map · 19 ms</text>
-          <rect class="new" x="650" y="136" width="210" height="62" rx="3"/><text class="b" x="755" y="162" text-anchor="middle">Decoder + camera sampler</text><text class="m" x="755" y="180" text-anchor="middle">CUDA graph · 10 ms</text>
+          <rect class="new" x="650" y="136" width="210" height="62" rx="3"/><text class="b" x="755" y="162" text-anchor="middle">Sparse queries + Decoder</text><text class="m" x="755" y="180" text-anchor="middle">CUDA graph · 10 ms</text>
           <rect class="new" x="910" y="136" width="170" height="62" rx="3"/><text class="b" x="995" y="162" text-anchor="middle">Heading refiner</text><text class="m" x="995" y="180" text-anchor="middle">5 ms</text>
           <path class="ln" d="M180 61H228" marker-end="url(#ah)"/><path class="ln" d="M380 61H428" marker-end="url(#ah)"/><path class="ln" d="M600 61H648" marker-end="url(#ah)"/><path class="ln" d="M800 61H848" marker-end="url(#ah)"/><path class="ln" d="M860 167H908" marker-end="url(#ah)"/>
           <path class="ln" d="M725 92V134" marker-end="url(#ah)"/>
@@ -226,22 +226,23 @@ footer p { max-width: 70ch; }
       </div>
       <div class="legend" id="legend"></div>
     </div>
-    <p class="note">Three held-out scenes where the student does best, by its mean rank on detection, map and occupancy among the 30 val_quick scenes; one frame every 1.5 s. Student: the final model. Predicted boxes with score ≥ 0.3; GT boxes are the nuScenes annotations the evaluation scores (hit by at least one LiDAR point, within each class's range). The occupancy view shows surface voxels inside the Occ3D camera mask for all three sources, the region it is scored on. In the BEV map the car faces right, at the centre. Drag it to compare sources; drag the 3D view to orbit and scroll to zoom.</p>
+    <p class="note">Three held-out scenes, one frame every 1.5 s. Student: the final model. Predicted boxes with score ≥ 0.3; GT boxes are the nuScenes annotations the evaluation scores (hit by at least one LiDAR point, within each class's range). The occupancy view shows surface voxels inside the Occ3D camera mask for all three sources, the region it is scored on. In the BEV map the car faces right, at the centre. Drag it to compare sources; drag the 3D view to orbit and scroll to zoom.</p>
   </section>
 
   <section id="results">
     <h2>Quantitative results</h2>
     <div class="sub">
-      <h3>Earlier chains · full nuScenes validation (6,019 frames)</h3>
+      <h3>Full nuScenes validation (6,019 frames)</h3>
       <div class="tbl"><table>
         <thead><tr><th>Model</th><th>Det mAP</th><th>NDS</th><th>Map mIoU</th><th>Occ mIoU</th><th>Latency</th></tr></thead>
         <tbody>
           <tr><td>Teacher</td><td>0.439</td><td>0.428</td><td>0.601</td><td>0.287</td><td>~4,000 ms</td></tr>
           <tr><td>Head distillation and TensorRT engines</td><td>0.394</td><td>0.386</td><td>0.578</td><td>0.280</td><td>416 ms</td></tr>
           <tr><td>Sparse queries, heading refiner, deployment fine-tune</td><td>0.407</td><td>0.403</td><td>0.591</td><td>0.286</td><td>184 ms</td></tr>
+          <tr class="cur"><td>Glue removal (final model)</td><td>0.405</td><td>0.402</td><td>0.596</td><td>0.282</td><td>105 ms</td></tr>
         </tbody>
       </table></div>
-      <p class="note">Detection uses the teacher's 7-class taxonomy and its NDS convention, without the attribute term. Map is scored against nuScenes map-expansion rasters and occupancy against Occ3D.</p>
+      <p class="note">Detection uses the teacher's 7-class taxonomy and its NDS convention, without the attribute term, on all 6,019 frames. Map is scored against nuScenes map-expansion rasters and occupancy against Occ3D, on every third frame (2,007).</p>
     </div>
     <div class="sub">
       <h3>Milestones · val_quick (30 held-out scenes)</h3>
@@ -253,12 +254,12 @@ footer p { max-width: 70ch; }
           <tr><td>Backbone distillation, 4K frames</td><td>0.422</td><td>0.407</td><td></td><td></td><td>~1,250 ms</td></tr>
           <tr><td>Head distillation and TensorRT engines</td><td>0.419</td><td>0.404</td><td>0.563</td><td>0.283</td><td>416 ms</td></tr>
           <tr><td>Sparse queries, heading refiner, deployment fine-tune</td><td>0.433</td><td>0.412</td><td>0.592</td><td>0.286</td><td>184 ms</td></tr>
-          <tr><td>Warped grid, half-height block, fused heads, exact folds</td><td>0.436</td><td>0.422</td><td>0.599</td><td>0.283</td><td>118 ms</td></tr>
+          <tr><td>Warped BEV grid, fused heads, exact folds</td><td>0.436</td><td>0.422</td><td>0.599</td><td>0.283</td><td>118 ms</td></tr>
           <tr><td>INT8 backbone</td><td>0.434</td><td>0.420</td><td>0.597</td><td>0.283</td><td>116 ms</td></tr>
           <tr class="cur"><td>Glue removal (final model)</td><td>0.434</td><td>0.420</td><td>0.597</td><td>0.283</td><td>105 ms</td></tr>
         </tbody>
       </table></div>
-      <p class="note">val_quick is 1,201 frames; map and occupancy use every third frame. The final model has not had a full-validation run. Only its weights are released. The two tables use different frames, so compare within a table, not across tables.</p>
+      <p class="note">val_quick is 1,201 frames; map and occupancy use every third frame. Only the final model's weights are released. The two tables use different frames, so compare within a table, not across tables.</p>
     </div>
   </section>
 
@@ -272,7 +273,7 @@ footer p { max-width: 70ch; }
         <div class="bar"><span>TensorRT engines, merged pooling, voxel block KD</span><div class="track"><span style="width:10.4%"></span></div><b>416 ms</b></div>
         <div class="bar"><span>Sparse queries, low-rank voxel block, 2D occupancy refiner, graphed decoder</span><div class="track"><span style="width:5.4%"></span></div><b>214 ms</b></div>
         <div class="bar"><span>Encoder engine, fast geometry, fp16 deployment numerics</span><div class="track"><span style="width:4.6%"></span></div><b>184 ms</b></div>
-        <div class="bar"><span>Warped BEV grid, half-height voxel block, dense-head fusion, exact folds</span><div class="track"><span style="width:3%"></span></div><b>118 ms</b></div>
+        <div class="bar"><span>Warped BEV grid, dense-head fusion, exact folds</span><div class="track"><span style="width:3%"></span></div><b>118 ms</b></div>
         <div class="bar"><span>INT8 quantization of the backbone</span><div class="track"><span style="width:2.9%"></span></div><b>116 ms</b></div>
         <div class="bar cur"><span>Glue removal, neck + depth fused into the student</span><div class="track"><span style="width:2.6%"></span></div><b>105 ms</b></div>
       </div>
@@ -295,6 +296,19 @@ footer p { max-width: 70ch; }
       <a href="https://github.com/ajaymopidevi/qwen-drive-student/blob/main/README.md#setup">Setup ↗</a>
       <a href="https://github.com/ajaymopidevi/qwen-drive-student/blob/main/docs/TRAINING.md">Training guide ↗</a>
       <a href="https://github.com/ajaymopidevi/qwen-drive-student/blob/main/results/metrics.json">Results ↗</a>
+    </div>
+  </section>
+
+  <section id="next">
+    <h2>Next steps</h2>
+    <p class="col">The student so far replaces the teacher's VLM for the BEV perception head only. Qwen-Drive-1.0 also answers driving questions with the VLM's language decoder and plans ego trajectories with a separate Planning Expert. The next two milestones move those two onto the small model, using the same approach: distill the teacher, then gate each step.</p>
+    <div class="sub">
+      <h3>1 · Driving VQA</h3>
+      <p class="col">The teacher has no separate VQA head: its unchanged Qwen3.5-4B language decoder answers driving and general questions as text. The student has no language model, so this milestone adds one. Plan: attach a small language decoder to the student's image and BEV features and distill it from the teacher's answers on driving VQA, scored against the teacher on the same questions.</p>
+    </div>
+    <div class="sub">
+      <h3>2 · Planning head</h3>
+      <p class="col">The teacher's Planning Expert is a separate flow-matching transformer of about 1.1B parameters, trained by imitation and then reinforcement learning, that outputs 50 ego waypoints over 5 s. It does not read the VLM's final features but its cached attention keys and values from eight layers, which the student does not produce. Two routes: train the student to produce stand-ins for those caches, or condition a smaller planner on the student's BEV outputs. Either way, one small model would produce boxes, map, occupancy and a trajectory; the milestone measures the planning gap to the teacher and the latency added to the 105 ms frame.</p>
     </div>
   </section>
 

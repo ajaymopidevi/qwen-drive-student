@@ -33,7 +33,7 @@
       "latency_ms": 184
     },
     {
-      "milestone": "Warped grid, half-height block, fused heads, exact folds",
+      "milestone": "Warped BEV grid, fused heads, exact folds",
       "mAP": 0.4359,
       "NDS": 0.4219,
       "map_mIoU": 0.599,
@@ -78,6 +78,21 @@
     "map_mIoU": 0.5836,
     "occ_mIoU": 0.2915,
     "latency_ms_approx": 4000
+  },
+  "full_val": {
+    "split": "nuScenes val (150 scenes, 6,019 frames; map and occupancy on every third frame, 2,007)",
+    "final_chain": {
+      "mAP": 0.4051,
+      "NDS": 0.4016,
+      "map_mIoU": 0.596,
+      "occ_mIoU": 0.2824
+    },
+    "teacher": {
+      "mAP": 0.4393,
+      "NDS": 0.4283,
+      "map_mIoU": 0.6011,
+      "occ_mIoU": 0.2872
+    }
   },
   "gate_vs_exact_fold_engine": {
     "method": "paired scene bootstrap; floor = 1.3% of the reference, on the 95% lower bound",

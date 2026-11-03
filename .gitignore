@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.egg-info/
+weights/*
+!weights/manifest.json
+data/*
+!data/splits/
+cache/
+outputs/
+runs/
+third_party/

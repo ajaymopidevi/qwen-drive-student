@@ -1,0 +1,4 @@
+# Separate environment for the nuScenes devkit: its numpy pin conflicts with the main environment.
+nuscenes-devkit==1.2.0
+numpy==1.26.4
+shapely==2.0.7

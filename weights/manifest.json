@@ -1,0 +1,105 @@
+{
+ "base_url": "REPLACE_WITH_RELEASE_URL",
+ "files": [
+  {
+   "path": "cache/teacher/v1.0-trainval/tap_stats_s1_CB.npz",
+   "bytes": 29682,
+   "sha256": "3410d48987c1bcc032881419bbbd68e971aa20731e564c4d9abf63644f75a747"
+  },
+  {
+   "path": "weights/calib.json",
+   "bytes": 43094,
+   "sha256": "441c55000206a1788acd92f90c65da534be0145035c6b12a6e76315cb625816d"
+  },
+  {
+   "path": "weights/engines/block_warp150_fp16.engine",
+   "bytes": 3532148,
+   "sha256": "b4d05aab35247e7d2b197963eb6aaea132dd60b5162e3dcb1712aaf24d8c366e"
+  },
+  {
+   "path": "weights/engines/block_z8_fp16.engine",
+   "bytes": 4427284,
+   "sha256": "59e20fce26fb452b215af3cb674c1aa93e39846bfded5eea33035b9adb81bb1b"
+  },
+  {
+   "path": "weights/engines/dense_heads_fp16.engine",
+   "bytes": 45534860,
+   "sha256": "199468ccfd46f52d80d9f5dc75ef3b8e99139038efc4df9daf0710e4f2c032df"
+  },
+  {
+   "path": "weights/engines/encoder_fp16.engine",
+   "bytes": 7659044,
+   "sha256": "173b5f396ce345c0ddb7b71121a079c3738b0062a0d3d2293d9e02b8b80bc313"
+  },
+  {
+   "path": "weights/engines/heading_refiner_fp16_b64.engine",
+   "bytes": 24390980,
+   "sha256": "0246e4a7a12824c0e4c70da975a377797f4d6f3af298b3bf3767177876aad22a"
+  },
+  {
+   "path": "weights/engines/modules/depth_net_fp16.engine",
+   "bytes": 11354460,
+   "sha256": "27f63581afdf3c07b9761e5ebb71b5bf7c712790f75a487eb3e60aa6142983c9"
+  },
+  {
+   "path": "weights/engines/modules/map_seg_fp16.engine",
+   "bytes": 13225172,
+   "sha256": "1af51a40fbb292e40b8a3fe9bc1cfd13b8ffb8ef3692fbbf9a19f6c934c6a8d1"
+  },
+  {
+   "path": "weights/engines/modules/occ_pred_head_fp16.engine",
+   "bytes": 196276,
+   "sha256": "4a9a829e9f5937109838e2713e726630e284d47c2f42e9968962b4cbd888eb97"
+  },
+  {
+   "path": "weights/engines/modules/vit_neck_fp16.engine",
+   "bytes": 2169332,
+   "sha256": "9c065df86b463758663a8f3051d1ccf491adcb7fa3b5dd1fce0056c6997ff69a"
+  },
+  {
+   "path": "weights/engines/occ_refiner_fp16.engine",
+   "bytes": 31163348,
+   "sha256": "8ba2e5ad83312b8247b8e894012452767787a0993625e8079d25705875a9d79f"
+  },
+  {
+   "path": "weights/engines/student_front_int8.engine",
+   "bytes": 67902852,
+   "sha256": "ea32e13ae8d7dec8776ae4e81c826646e6e5ca2077571e97edac11305a44d4dd"
+  },
+  {
+   "path": "weights/engines/voxel_r64_fp16.engine",
+   "bytes": 3261740,
+   "sha256": "513713f9718c3c5cc6a7d69bdaa889db01497f444e3a4a4162f6a86fe0313d4c"
+  },
+  {
+   "path": "weights/fine_tune.pt",
+   "bytes": 67887655,
+   "sha256": "3e5f85fcedf8dc06808574fc952645271401ab4443fb08e9c0218b8cc50b2d0a"
+  },
+  {
+   "path": "weights/heading_refiner.pt",
+   "bytes": 45342332,
+   "sha256": "8db2d81089690f8cc60cc66501c0d0a3707dda0e7cde918943eba546bb3422a8"
+  },
+  {
+   "path": "weights/occ_refiner.pt",
+   "bytes": 59431593,
+   "sha256": "b3d6afd4a3efef386851eae2b3c611390e7e87a9073f865ca2874caeaff70398"
+  },
+  {
+   "path": "weights/onnx/student_front.onnx",
+   "bytes": 145856258,
+   "sha256": "ac72c427ca885eea9ce03bac9a5b08bc668eb914618feaef056ef036bfd18afd"
+  },
+  {
+   "path": "weights/sampler.pt",
+   "bytes": 33541395,
+   "sha256": "fa0cb008a9075fe0439a6bd3d33e7110a855046014855a6d7f1a93eca5adced2"
+  },
+  {
+   "path": "weights/student.pt",
+   "bytes": 97345715,
+   "sha256": "8bc7e7e5d3d0b7fbf7c1880a76e9885477a6ea3eb37140d58efb8cc83607db46"
+  }
+ ]
+}

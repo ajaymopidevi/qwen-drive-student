@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qdistill"
+version = "0.1.0"
+description = "Distilling Qwen-Drive-1.0 BEV perception into a small camera-only student"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+
+[tool.setuptools.packages.find]
+where = ["src"]

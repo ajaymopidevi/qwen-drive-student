@@ -1,0 +1,115 @@
+{
+  "milestones": [
+    {
+      "milestone": "Backbone distillation, 2K frames",
+      "mAP": 0.4107,
+      "NDS": 0.3944,
+      "map_mIoU": null,
+      "occ_mIoU": null,
+      "latency_ms": null
+    },
+    {
+      "milestone": "Backbone distillation, 4K frames",
+      "mAP": 0.4221,
+      "NDS": 0.4074,
+      "map_mIoU": null,
+      "occ_mIoU": null,
+      "latency_ms": 1250
+    },
+    {
+      "milestone": "Head distillation and TensorRT engines",
+      "mAP": 0.4194,
+      "NDS": 0.404,
+      "map_mIoU": 0.563,
+      "occ_mIoU": 0.283,
+      "latency_ms": 416
+    },
+    {
+      "milestone": "Sparse queries, heading refiner and deployment fine-tune",
+      "mAP": 0.4325,
+      "NDS": 0.4117,
+      "map_mIoU": 0.592,
+      "occ_mIoU": 0.286,
+      "latency_ms": 184
+    },
+    {
+      "milestone": "Warped grid, half-height block, fused heads, exact folds",
+      "mAP": 0.4359,
+      "NDS": 0.4219,
+      "map_mIoU": 0.599,
+      "occ_mIoU": 0.283,
+      "latency_ms": 118
+    },
+    {
+      "milestone": "INT8 backbone",
+      "mAP": 0.4336,
+      "NDS": 0.42,
+      "map_mIoU": 0.597,
+      "occ_mIoU": 0.283,
+      "latency_ms": 116
+    },
+    {
+      "milestone": "Glue removal (final model)",
+      "mAP": 0.4338,
+      "NDS": 0.4202,
+      "map_mIoU": 0.5973,
+      "occ_mIoU": 0.2826,
+      "latency_ms": 104.5
+    }
+  ],
+  "final_chain": {
+    "split": "val_quick (30 held-out scenes, 1,201 frames; map and occupancy on every third frame)",
+    "mAP": 0.4338,
+    "NDS": 0.4202,
+    "map_mIoU": 0.5973,
+    "occ_mIoU": 0.2826,
+    "latency_ms": {
+      "student": 20.9,
+      "head": 78.2,
+      "heading": 4.9,
+      "total_without_decode": 104.5,
+      "jpeg_decode": 21.8
+    }
+  },
+  "teacher": {
+    "split": "val_quick",
+    "mAP": 0.467,
+    "NDS": 0.445,
+    "map_mIoU": 0.5836,
+    "occ_mIoU": 0.2915,
+    "latency_ms_approx": 4000
+  },
+  "gate_vs_exact_fold_engine": {
+    "method": "paired scene bootstrap; floor = 1.3% of the reference, on the 95% lower bound",
+    "mAP": {
+      "change": -0.0021,
+      "lower_bound": -0.0043,
+      "floor": -0.0057
+    },
+    "NDS": {
+      "change": -0.0017,
+      "lower_bound": -0.0036,
+      "floor": -0.0055
+    },
+    "map_val_quick": {
+      "change": -0.0016,
+      "lower_bound": -0.0032,
+      "floor": -0.0078
+    },
+    "map_further_120_scenes": {
+      "change": -0.0016,
+      "lower_bound": -0.0024,
+      "floor": -0.0078
+    },
+    "occ_val_quick": {
+      "change": -0.0007,
+      "lower_bound": -0.0016,
+      "floor": -0.0037
+    },
+    "occ_further_120_scenes": {
+      "change": -0.0015,
+      "lower_bound": -0.0025,
+      "floor": -0.0036
+    }
+  }
+}

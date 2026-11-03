@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Qwen-Drive Student</title>
+<meta name="description" content="Distilling a driving VLM's 3D perception into a small camera-only model that runs on one RTX 4060.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one scrolling project page under a sticky anchor bar. Reading column 720px, media and tables break out to 1080px.
+   The viewer stage stays dark in both themes because it frames photographs and BEV rasters. */
+:root {
+  --bg: #eef1f4; --surface: #ffffff; --fg: #10202c; --muted: #54636f; --line: #cfd6dd;
+  --accent: #00766a; --accent-soft: #d6ebe7; --warn: #a65a00;
+  --stage: #0e161c; --stage-fg: #dfe7ec; --stage-line: #2b3943;
+  --student: #35e0c2; --teacher: #c9a2ff; --gt: #ffc247;
+  --display: "Familjen Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0d141a; --surface: #141e26; --fg: #e4eaef; --muted: #98a6b1; --line: #2a3843;
+  --accent: #52d6bd; --accent-soft: #15332f; --warn: #f0a640; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0d141a; --surface: #141e26; --fg: #e4eaef; --muted: #98a6b1; --line: #2a3843;
+  --accent: #52d6bd; --accent-soft: #15332f; --warn: #f0a640; color-scheme: dark }
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 64px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { background: var(--bg); color: var(--fg); font: 400 16px/1.6 var(--body); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.gut { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+nav { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
+nav div { max-width: 1080px; margin: 0 auto; display: flex; gap: 22px; overflow-x: auto; padding-block: 12px; font: 500 13px/1.3 var(--mono); white-space: nowrap; }
+nav a { color: var(--muted); text-decoration: none; }
+nav a:hover, nav a:focus-visible { color: var(--accent); }
+main { max-width: 1080px; margin: 0 auto; padding-block: 56px 72px; display: grid; gap: 72px; }
+main > * { min-width: 0; }
+.col { max-width: 720px; }
+section { display: grid; gap: 20px; scroll-margin-top: 64px; }
+section > *, .sub > * { min-width: 0; }
+.sub { display: grid; gap: 12px; }
+h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(44px, 8vw, 76px); font-weight: 700; line-height: 1; letter-spacing: -0.02em; }
+h2 { font-size: 30px; font-weight: 600; line-height: 1.15; }
+h3 { font-size: 19px; font-weight: 600; line-height: 1.25; }
+p { margin: 0; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+header { display: grid; gap: 18px; }
+.eyebrow { font: 500 13px/1.4 var(--mono); color: var(--muted); }
+.subtitle { font: 500 clamp(20px, 3vw, 26px)/1.25 var(--display); max-width: 30em; text-wrap: balance; }
+.author { color: var(--muted); }
+.links { display: flex; flex-wrap: wrap; gap: 10px; }
+.links a { font: 500 14px/1 var(--mono); padding: 10px 14px; border: 1px solid var(--accent); border-radius: 3px; text-decoration: none; }
+.links a:hover { background: var(--accent-soft); }
+.tldr { font-size: 18px; line-height: 1.55; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; padding-block: 20px; border-block: 1px solid var(--line); margin: 0; }
+.stats div { display: grid; gap: 2px; align-content: start; }
+.stats dt { font: 700 34px/1.1 var(--display); font-variant-numeric: tabular-nums; }
+.stats dd { margin: 0; font-size: 14px; line-height: 1.4; color: var(--muted); }
+figure { margin: 0; display: grid; gap: 10px; min-width: 0; }
+figcaption, .note { font-size: 14px; line-height: 1.5; color: var(--muted); max-width: 78ch; }
+.diagram { overflow-x: auto; }
+.diagram svg { display: block; width: 100%; min-width: 860px; height: auto; }
+svg text { font-family: var(--body); fill: var(--fg); font-size: 13px; }
+svg .m { font-family: var(--mono); font-size: 11px; fill: var(--muted); }
+svg .b { font-weight: 600; }
+svg .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.2; }
+svg .new { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.4; }
+svg .off { fill: none; stroke: var(--line); stroke-dasharray: 4 3; stroke-width: 1.2; }
+svg .ln { fill: none; stroke: var(--muted); stroke-width: 1.3; }
+svg .lane { font-family: var(--mono); font-size: 11px; fill: var(--muted); letter-spacing: .06em; }
+
+.viewer { background: var(--stage); color: var(--stage-fg); padding: 12px; border-radius: 4px; display: grid; gap: 10px; }
+.ctl { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font: 400 13px/1.2 var(--mono); }
+.group { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.viewer button { font: inherit; color: var(--stage-fg); background: transparent; border: 1px solid var(--stage-line); padding: 7px 10px; border-radius: 3px; cursor: pointer; }
+.viewer button:hover { border-color: var(--stage-fg); }
+.viewer button[aria-pressed="true"] { background: var(--stage-fg); color: var(--stage); border-color: var(--stage-fg); }
+.viewer button.s-student[aria-pressed="true"] { background: var(--student); border-color: var(--student); }
+.viewer button.s-teacher[aria-pressed="true"] { background: var(--teacher); border-color: var(--teacher); }
+.viewer button.s-gt[aria-pressed="true"] { background: var(--gt); border-color: var(--gt); }
+.viewer button:focus-visible, .viewer input:focus-visible { outline-color: var(--stage-fg); }
+.lbl { color: #8fa1ad; }
+.pane { position: relative; width: 100%; background: #000; touch-action: pan-y; overflow: hidden; }
+.pane canvas { display: block; width: 100%; height: 100%; }
+#camPane { aspect-ratio: 16 / 6; }
+#mapPane { aspect-ratio: 2 / 1; cursor: ew-resize; }
+#occPane { aspect-ratio: 16 / 8; cursor: grab; touch-action: none; }
+.tag { position: absolute; top: 8px; font: 500 12px/1 var(--mono); padding: 5px 7px; background: rgba(14, 22, 28, .8); color: var(--stage-fg); pointer-events: none; }
+.scrub { display: flex; gap: 12px; align-items: center; font: 400 13px/1 var(--mono); }
+.scrub input { flex: 1; min-width: 0; accent-color: #52d6bd; }
+.scrub output { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font: 400 12px/1.4 var(--mono); color: #b3c0c9; }
+.legend i { display: inline-block; width: 10px; height: 10px; margin-right: 5px; }
+.status { position: absolute; inset: 0; display: grid; place-items: center; font: 400 13px/1.4 var(--mono); color: #b3c0c9; text-align: center; padding: 16px; }
+
+.status[hidden] { display: none; }
+.tbl { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: 15px; font-variant-numeric: tabular-nums; }
+th, td { padding: 9px 14px 9px 0; text-align: right; border-bottom: 1px solid var(--line); vertical-align: top; }
+th:first-child, td:first-child { text-align: left; }
+td.t, th.t { text-align: left; }
+thead th { font: 500 12px/1.3 var(--mono); color: var(--muted); border-bottom: 1.5px solid var(--fg); }
+tr.cur td { font-weight: 600; color: var(--accent); }
+.bars { display: grid; gap: 8px; }
+.bars { gap: 12px; }
+.bar { display: grid; grid-template-columns: minmax(0, 400px) minmax(0, 1fr) 76px; gap: 14px; align-items: center; font-size: 14px; line-height: 1.35; }
+.track { height: 16px; display: flex; }
+.track span { display: block; height: 100%; background: var(--muted); }
+.bar.cur { font-weight: 600; }
+.bar.cur .track span { background: var(--accent); }
+.bar b { font: 500 13px/1 var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
+.stack { display: flex; height: 34px; font: 500 12px/34px var(--mono); }
+.stack span { padding-left: 8px; overflow: hidden; white-space: nowrap; color: var(--bg); }
+.stack .a { background: var(--accent); } .stack .b2 { background: var(--muted); } .stack .c { background: var(--warn); }
+footer { border-top: 1px solid var(--line); padding-top: 18px; display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; font-size: 14px; color: var(--muted); }
+footer p { max-width: 70ch; }
+@media (max-width: 680px) {
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  main { padding-block: 36px 48px; gap: 52px; }
+  .bar { grid-template-columns: minmax(0, 1fr) 76px; gap: 4px 12px; }
+  .bar > span { grid-column: 1 / -1; }
+  #camPane { aspect-ratio: 16 / 9; }
+  #occPane { aspect-ratio: 1 / 1; }
+}
+</style>
+</head>
+<body>
+
+<nav class="gut" aria-label="Sections"><div>
+  <a href="#overview">Overview</a><a href="#method">Method</a><a href="#visualizations">Visualizations</a><a href="#results">Results</a><a href="#latency">Latency</a><a href="#code">Code</a>
+</div></nav>
+
+<div class="gut"><main>
+  <header id="overview">
+    <p class="eyebrow">Independent research project · Oct – Nov 2026 · one RTX 4060, 8 GB</p>
+    <h1>Qwen-Drive Student</h1>
+    <p class="subtitle">Distilling a driving VLM's 3D perception into a small camera-only model</p>
+    <p class="author">Ajay Narasimha Mopidevi</p>
+    <div class="links">
+      <a href="https://github.com/ajaymopidevi/qwen-drive-student">Code ↗</a>
+      <a href="https://arxiv.org/abs/2609.00111">Teacher report ↗</a>
+      <a href="https://www.nuscenes.org/">nuScenes ↗</a>
+      <a href="#visualizations">Interactive viewer ↓</a>
+    </div>
+  </header>
+
+  <section aria-labelledby="tldr">
+    <h2 id="tldr">TL;DR</h2>
+    <p class="tldr col">Qwen-Drive-1.0 gets 3D detection, BEV map segmentation and 3D occupancy from six cameras, on top of a 4-billion-parameter vision-language model that takes about 4 seconds a frame on this GPU. A 24M-parameter student replaces the VLM, and the perception head was rebuilt block by block under pre-set accuracy gates. The final model runs in 105 ms and keeps 93% of the teacher's detection mAP on held-out scenes.</p>
+    <dl class="stats">
+      <div><dt>105 ms</dt><dd>per six-camera frame, down from about 4 s</dd></div>
+      <div><dt>24M</dt><dd>student parameters, replacing the 4B VLM</dd></div>
+      <div><dt>93%</dt><dd>of teacher mAP, val_quick (0.434 vs 0.467)</dd></div>
+      <div><dt>103% / 97%</dt><dd>of teacher map / occupancy mIoU, scored against GT</dd></div>
+    </dl>
+  </section>
+
+  <section id="method">
+    <h2>Method</h2>
+    <div class="sub">
+      <h3>Distillation</h3>
+      <figure>
+        <div class="diagram"><svg viewBox="0 0 1080 236" role="img" aria-label="The teacher's VLM produces a ViT tap and an LLM tap for the BEV head. The student regresses those taps through frozen views of the head, then the head's blocks are replaced one at a time, each gated.">
+          <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0L10,5L0,10z" style="fill:var(--muted)"/></marker></defs>
+          <text class="lane" x="0" y="16">TEACHER</text>
+          <rect class="box" x="0" y="26" width="120" height="62" rx="3"/><text class="b" x="60" y="52" text-anchor="middle">6 cameras</text><text class="m" x="60" y="70" text-anchor="middle">896×512</text>
+          <rect class="box" x="170" y="26" width="190" height="62" rx="3"/><text class="b" x="265" y="52" text-anchor="middle">Qwen3.5-4B VLM</text><text class="m" x="265" y="70" text-anchor="middle">2.8 s per frame</text>
+          <rect class="box" x="420" y="26" width="240" height="62" rx="3"/><text class="b" x="540" y="52" text-anchor="middle">ViT tap + LLM tap</text><text class="m" x="540" y="70" text-anchor="middle">[6,32,56,1024] · [6,16,28,2560]</text>
+          <rect class="box" x="720" y="26" width="360" height="62" rx="3"/><text class="b" x="900" y="52" text-anchor="middle">BEV head</text><text class="m" x="900" y="70" text-anchor="middle">boxes · BEV map · occupancy</text>
+          <path class="ln" d="M120 57H168" marker-end="url(#ah)"/><path class="ln" d="M360 57H418" marker-end="url(#ah)"/><path class="ln" d="M660 57H718" marker-end="url(#ah)"/>
+          <text class="lane" x="0" y="130">STUDENT</text>
+          <rect class="box" x="0" y="140" width="120" height="62" rx="3"/><text class="b" x="60" y="166" text-anchor="middle">6 cameras</text><text class="m" x="60" y="184" text-anchor="middle">same input</text>
+          <rect class="new" x="170" y="140" width="190" height="62" rx="3"/><text class="b" x="265" y="166" text-anchor="middle">HGNetV2-B4 + branches</text><text class="m" x="265" y="184" text-anchor="middle">24M parameters</text>
+          <rect class="off" x="420" y="140" width="240" height="62" rx="3"/><text class="b" x="540" y="166" text-anchor="middle">Regressed taps</text><text class="m" x="540" y="184" text-anchor="middle">losses in head space + depth KL</text>
+          <rect class="new" x="720" y="140" width="360" height="62" rx="3"/><text class="b" x="900" y="166" text-anchor="middle">Rebuilt head, one gated block at a time</text><text class="m" x="900" y="184" text-anchor="middle">KD + GT · paired scene bootstrap</text>
+          <path class="ln" d="M120 171H168" marker-end="url(#ah)"/><path class="ln" d="M360 171H418" marker-end="url(#ah)"/><path class="ln" d="M660 171H718" marker-end="url(#ah)"/>
+          <path class="ln" d="M540 88V138" marker-end="url(#ah)"/><text class="m" x="550" y="118">cached targets</text>
+          <path class="ln" d="M900 88V138" marker-end="url(#ah)"/><text class="m" x="910" y="118">KD targets</text>
+        </svg></div>
+        <figcaption><b>Figure 1.</b> The student first regresses the two features the teacher's head reads, so all three tasks come along at once. Matching those features in the head's own projected space, plus a depth distribution loss, closed most of the gap. Only then were the head's blocks replaced, each one gated before the next started.</figcaption>
+      </figure>
+    </div>
+    <div class="sub">
+      <h3>Runtime chain</h3>
+      <figure>
+        <div class="diagram"><svg viewBox="0 0 1080 250" role="img" aria-label="Runtime chain: six cameras enter one INT8 student engine; a geometry path runs voxel pooling, a half-height voxel block and a BEV encoder into a dense engine for map and occupancy and into a detection decoder that also samples image levels; a heading refiner follows detection.">
+          <rect class="new" x="0" y="50" width="180" height="150" rx="3"/><text class="b" x="90" y="108" text-anchor="middle">Student engine</text><text class="m" x="90" y="128" text-anchor="middle">INT8 backbone</text><text class="m" x="90" y="144" text-anchor="middle">folded neck + depth</text><text class="m" x="90" y="160" text-anchor="middle">21 ms</text>
+          <rect class="box" x="230" y="30" width="150" height="62" rx="3"/><text class="b" x="305" y="56" text-anchor="middle">Voxel pooling</text><text class="m" x="305" y="74" text-anchor="middle">CUDA · 11 ms</text>
+          <rect class="new" x="430" y="30" width="170" height="62" rx="3"/><text class="b" x="515" y="56" text-anchor="middle">Half-height voxel block</text><text class="m" x="515" y="74" text-anchor="middle">warped 150² · 19 ms</text>
+          <rect class="new" x="650" y="30" width="150" height="62" rx="3"/><text class="b" x="725" y="56" text-anchor="middle">BEV encoder ×6</text><text class="m" x="725" y="74" text-anchor="middle">14 ms</text>
+          <rect class="new" x="850" y="30" width="230" height="62" rx="3"/><text class="b" x="965" y="56" text-anchor="middle">Dense engine</text><text class="m" x="965" y="74" text-anchor="middle">occupancy + map · 19 ms</text>
+          <rect class="new" x="650" y="136" width="210" height="62" rx="3"/><text class="b" x="755" y="162" text-anchor="middle">Decoder + camera sampler</text><text class="m" x="755" y="180" text-anchor="middle">CUDA graph · 10 ms</text>
+          <rect class="new" x="910" y="136" width="170" height="62" rx="3"/><text class="b" x="995" y="162" text-anchor="middle">Heading refiner</text><text class="m" x="995" y="180" text-anchor="middle">5 ms</text>
+          <path class="ln" d="M180 61H228" marker-end="url(#ah)"/><path class="ln" d="M380 61H428" marker-end="url(#ah)"/><path class="ln" d="M600 61H648" marker-end="url(#ah)"/><path class="ln" d="M800 61H848" marker-end="url(#ah)"/><path class="ln" d="M860 167H908" marker-end="url(#ah)"/>
+          <path class="ln" d="M725 92V134" marker-end="url(#ah)"/>
+          <path class="ln" d="M180 167H648" marker-end="url(#ah)"/><text class="m" x="300" y="158">4 image levels, read per query in every camera</text>
+        </svg></div>
+        <figcaption><b>Figure 2.</b> Green blocks were trained or rewritten here. The BEV grid is warped: 0.512 m cells within ±25.6 m of the car, 1.024 m beyond, because coarse cells only cost near-range centre precision. Block timings were profiled before the final fusion step; the totals in <a href="#latency">Latency</a> are newer.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section id="visualizations">
+    <h2>Visualizations</h2>
+    <div class="viewer" id="viewer">
+      <div class="ctl">
+        <div class="group" id="scenes" role="group" aria-label="Scene"></div>
+        <div class="group" id="tabs" role="group" aria-label="View">
+          <button data-tab="cam" id="tabCam">Cameras</button><button data-tab="map" id="tabMap">BEV map</button><button data-tab="occ" id="tabOcc">3D occupancy</button>
+        </div>
+        <div class="group" id="sources" role="group" aria-label="Boxes shown"></div>
+      </div>
+      <div class="pane" id="camPane"><canvas id="camCanvas" width="1344" height="504" aria-label="Six camera views with projected 3D boxes"></canvas><div class="status" id="camStatus">Loading scene…</div></div>
+      <div class="pane" id="mapPane" hidden><canvas id="mapCanvas" width="1200" height="600" aria-label="BEV map comparison, drag to compare"></canvas><span class="tag" id="mapL" style="left:8px"></span><span class="tag" id="mapR" style="right:8px"></span></div>
+      <div class="pane" id="occPane" hidden><div class="status" id="occStatus">Loading 3D view…</div></div>
+      <div class="scrub">
+        <button id="play" aria-pressed="false">Play</button>
+        <label class="lbl" for="frame">Frame</label>
+        <input id="frame" type="range" min="0" max="12" value="6">
+        <output id="frameOut" for="frame">–</output>
+      </div>
+      <div class="legend" id="legend"></div>
+    </div>
+    <p class="note">Three held-out scenes, one frame every 1.5 s. Student: the final model. Boxes with score ≥ 0.3; GT is the nuScenes annotation. The occupancy view shows surface voxels inside the Occ3D camera mask for all three sources, the region it is scored on. In the BEV map the car faces right, at the centre. Drag it to compare sources; drag the 3D view to orbit and scroll to zoom.</p>
+  </section>
+
+  <section id="results">
+    <h2>Quantitative results</h2>
+    <div class="sub">
+      <h3>Earlier chains · full nuScenes validation (6,019 frames)</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Model</th><th>Det mAP</th><th>NDS</th><th>Map mIoU</th><th>Occ mIoU</th><th>Latency</th></tr></thead>
+        <tbody>
+          <tr><td>Teacher</td><td>0.439</td><td>0.428</td><td>0.601</td><td>0.287</td><td>~4,000 ms</td></tr>
+          <tr><td>Head distillation and TensorRT engines</td><td>0.394</td><td>0.386</td><td>0.578</td><td>0.280</td><td>416 ms</td></tr>
+          <tr><td>Sparse queries, heading refiner, deployment fine-tune</td><td>0.407</td><td>0.403</td><td>0.591</td><td>0.286</td><td>184 ms</td></tr>
+        </tbody>
+      </table></div>
+      <p class="note">Detection uses the teacher's 7-class taxonomy and its NDS convention, without the attribute term. Map is scored against nuScenes map-expansion rasters and occupancy against Occ3D.</p>
+    </div>
+    <div class="sub">
+      <h3>Milestones · val_quick (30 held-out scenes)</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Model</th><th>Det mAP</th><th>NDS</th><th>Map mIoU</th><th>Occ mIoU</th><th>Latency</th></tr></thead>
+        <tbody>
+          <tr><td>Teacher</td><td>0.467</td><td>0.445</td><td>0.584</td><td>0.292</td><td>~4,000 ms</td></tr>
+          <tr><td>Backbone distillation, 2K frames</td><td>0.411</td><td>0.394</td><td></td><td></td><td></td></tr>
+          <tr><td>Backbone distillation, 4K frames</td><td>0.422</td><td>0.407</td><td></td><td></td><td>~1,250 ms</td></tr>
+          <tr><td>Head distillation and TensorRT engines</td><td>0.419</td><td>0.404</td><td>0.563</td><td>0.283</td><td>416 ms</td></tr>
+          <tr><td>Sparse queries, heading refiner, deployment fine-tune</td><td>0.433</td><td>0.412</td><td>0.592</td><td>0.286</td><td>184 ms</td></tr>
+          <tr><td>Warped grid, half-height block, fused heads, exact folds</td><td>0.436</td><td>0.422</td><td>0.599</td><td>0.283</td><td>118 ms</td></tr>
+          <tr><td>INT8 backbone</td><td>0.434</td><td>0.420</td><td>0.597</td><td>0.283</td><td>116 ms</td></tr>
+          <tr class="cur"><td>Glue removal (final model)</td><td>0.434</td><td>0.420</td><td>0.597</td><td>0.283</td><td>105 ms</td></tr>
+        </tbody>
+      </table></div>
+      <p class="note">val_quick is 1,201 frames; map and occupancy use every third frame. The final model has not had a full-validation run. Only its weights are released. The two tables use different frames, so compare within a table, not across tables.</p>
+    </div>
+    <div class="sub">
+      <h3>Accuracy gate · final model vs the exact fold engine</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Metric</th><th>Change</th><th>95% lower bound</th><th>Floor</th><th class="t">Result</th></tr></thead>
+        <tbody>
+          <tr><td>mAP</td><td>−0.0021</td><td>−0.0043</td><td>−0.0057</td><td class="t">pass</td></tr>
+          <tr><td>NDS</td><td>−0.0017</td><td>−0.0036</td><td>−0.0055</td><td class="t">pass</td></tr>
+          <tr><td>Map mIoU, val_quick</td><td>−0.0016</td><td>−0.0032</td><td>−0.0078</td><td class="t">pass</td></tr>
+          <tr><td>Map mIoU, 120 further scenes</td><td>−0.0016</td><td>−0.0024</td><td>−0.0078</td><td class="t">pass</td></tr>
+          <tr><td>Occ mIoU, val_quick</td><td>−0.0007</td><td>−0.0016</td><td>−0.0037</td><td class="t">pass</td></tr>
+          <tr><td>Occ mIoU, 120 further scenes</td><td>−0.0015</td><td>−0.0025</td><td>−0.0036</td><td class="t">pass</td></tr>
+        </tbody>
+      </table></div>
+      <p class="note">Paired scene bootstrap. The floor is 1.3% of the reference, applied to the lower bound, so a change passes only when the data rule out a larger loss. The further scenes are val_rest at every ninth frame.</p>
+    </div>
+  </section>
+
+  <section id="latency">
+    <h2>Latency</h2>
+    <div class="sub">
+      <h3>Per six-camera frame, after each step</h3>
+      <div class="bars" role="img" aria-label="Latency after each step: teacher about 4000 ms, backbone distillation about 1250 ms, TensorRT engines 416 ms, sparse queries 214 ms, fine-tune in deployment numerics 184 ms, warped grid and engine fusion 118 ms, INT8 quantization 116 ms, glue removal 105 ms.">
+        <div class="bar"><span>Teacher: Qwen3.5-4B VLM + BEV head</span><div class="track"><span style="width:100%"></span></div><b>~4,000 ms</b></div>
+        <div class="bar"><span>Backbone distillation: 4B VLM to 24M student</span><div class="track"><span style="width:31.3%"></span></div><b>~1,250 ms</b></div>
+        <div class="bar"><span>TensorRT engines, merged pooling, voxel block KD</span><div class="track"><span style="width:10.4%"></span></div><b>416 ms</b></div>
+        <div class="bar"><span>Sparse queries, low-rank voxel block, 2D occupancy refiner, graphed decoder</span><div class="track"><span style="width:5.4%"></span></div><b>214 ms</b></div>
+        <div class="bar"><span>Encoder engine, fast geometry, fp16 deployment numerics</span><div class="track"><span style="width:4.6%"></span></div><b>184 ms</b></div>
+        <div class="bar"><span>Warped BEV grid, half-height voxel block, dense-head fusion, exact folds</span><div class="track"><span style="width:3%"></span></div><b>118 ms</b></div>
+        <div class="bar"><span>INT8 quantization of the backbone</span><div class="track"><span style="width:2.9%"></span></div><b>116 ms</b></div>
+        <div class="bar cur"><span>Glue removal, neck + depth fused into the student</span><div class="track"><span style="width:2.6%"></span></div><b>105 ms</b></div>
+      </div>
+      <p class="note">Median on an RTX 4060 Laptop GPU; times are cumulative, and values from different sessions vary by a few ms. The teacher and backbone rows are approximate; the backbone row is the 1,223 ms measured head plus the student.</p>
+    </div>
+    <div class="sub">
+      <h3>Where the 105 ms goes</h3>
+      <div class="stack" role="img" aria-label="Student 20.9 ms, head 78.2 ms, heading refiner 4.9 ms">
+        <span class="a" style="flex:20.9">student 20.9</span><span class="b2" style="flex:78.2">head 78.2</span><span class="c" style="flex:4.9" title="heading 4.9"></span>
+      </div>
+      <p class="note">Student 20.9 ms, head 78.2 ms, heading refiner 4.9 ms, medians from one session. JPEG decode is not included and adds about 22 ms.</p>
+    </div>
+  </section>
+
+  <section id="code">
+    <h2>Code</h2>
+    <p class="col">The repository holds the code for each step above, the released weights' manifest and the commands behind these numbers. Run <code>recipes/evaluate.sh</code> for accuracy and <code>recipes/latency.sh</code> for latency. The released engines were built for an RTX 4060 and may need rebuilding on other GPUs.</p>
+    <div class="links">
+      <a href="https://github.com/ajaymopidevi/qwen-drive-student">Repository ↗</a>
+      <a href="https://github.com/ajaymopidevi/qwen-drive-student/blob/main/README.md#setup">Setup ↗</a>
+      <a href="https://github.com/ajaymopidevi/qwen-drive-student/blob/main/docs/TRAINING.md">Training guide ↗</a>
+      <a href="https://github.com/ajaymopidevi/qwen-drive-student/blob/main/results/metrics.json">Results ↗</a>
+    </div>
+  </section>
+
+  <footer>
+    <p>Independent work, not affiliated with the Qwen-Drive authors, nuScenes or Motional. Camera images and annotations from nuScenes (CC BY-NC-SA 4.0); occupancy labels from Occ3D.</p>
+    <a href="#overview">Back to top ↑</a>
+  </footer>
+</main></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const SOURCES = [["student", "Student"], ["teacher", "Teacher"], ["gt", "GT"]];
+  const COL = { student: "#35e0c2", teacher: "#c9a2ff", gt: "#ffc247" };
+  const OCC = [["vehicle", "#4aa3ff"], ["czone sign", "#ff7ad9"], ["bicycle", "#ff5f7e"], ["generic object", "#c9a2ff"],
+    ["pedestrian", "#ff3b30"], ["traffic cone", "#ff9f1c"], ["barrier", "#f4e04d"], ["driveable", "#3e4a58"], ["static", "#6fae8e"]];
+  const MAP = [["driveable", "#3e4a58"], ["road line", "#f5c542"], ["road edge", "#eb5757"], ["crosswalk", "#f0f0f0"], ["walkway", "#60b88a"]];
+  const CAM_W = 448, CAM_H = 252;
+  const NAMES = ["Front left", "Front", "Front right", "Back left", "Back", "Back right"];
+  const S = { scene: 0, frame: 6, tab: "cam", on: { student: true, teacher: false, gt: false }, left: "student", right: "gt", occ: "student", split: 0.5, timer: null };
+  let index = [], data = {}, img = null, three = null, mapImgs = {};
+
+  const press = (el, v) => el.setAttribute("aria-pressed", v ? "true" : "false");
+  function buildSources() {
+    const box = $("sources"); box.innerHTML = "";
+    SOURCES.forEach(([k, n]) => {
+      const b = document.createElement("button"); b.textContent = n; b.className = "s-" + k;
+      const on = S.tab === "cam" ? S.on[k] : S.tab === "occ" ? S.occ === k : S.left === k || S.right === k;
+      press(b, on);
+      b.onclick = () => {
+        if (S.tab === "cam") S.on[k] = !S.on[k];
+        else if (S.tab === "occ") S.occ = k;
+        else if (k !== S.left && k !== S.right) { S.left = S.right; S.right = k; }
+        else if (k === S.left) { S.left = S.right; S.right = k; }
+        buildSources(); draw();
+      };
+      box.appendChild(b);
+    });
+  }
+  function legend() {
+    const l = S.tab === "cam" ? [] : S.tab === "map" ? MAP : OCC;
+    $("legend").innerHTML = l.map(([n, c]) => `<span><i style="background:${c}"></i>${n}</span>`).join("");
+  }
+  function drawCams() {
+    const c = $("camCanvas"), g = c.getContext("2d");
+    if (!img) return;
+    g.drawImage(img, 0, 0, c.width, c.height);
+    const fr = data[S.scene].frames[S.frame];
+    g.lineWidth = 1.3;
+    ["gt", "teacher", "student"].forEach(k => {
+      if (!S.on[k]) return;
+      g.strokeStyle = COL[k];
+      g.beginPath();
+      fr.boxes[k].forEach(b => Object.entries(b.w).forEach(([i, segs]) => {
+        const ox = (i % 3) * CAM_W, oy = Math.floor(i / 3) * CAM_H;
+        segs.forEach(s => {
+          const x0 = Math.min(CAM_W, Math.max(0, s[0])), y0 = Math.min(CAM_H, Math.max(0, s[1]));
+          const x1 = Math.min(CAM_W, Math.max(0, s[2])), y1 = Math.min(CAM_H, Math.max(0, s[3]));
+          g.moveTo(x0 + ox, y0 + oy); g.lineTo(x1 + ox, y1 + oy);
+        });
+      }));
+      g.stroke();
+    });
+    g.font = "500 13px 'IBM Plex Mono', monospace";
+    NAMES.forEach((n, i) => {
+      const x = (i % 3) * CAM_W + 8, y = Math.floor(i / 3) * CAM_H + 8, w = g.measureText(n).width + 12;
+      g.fillStyle = "rgba(14,22,28,.75)"; g.fillRect(x, y, w, 20);
+      g.fillStyle = "#dfe7ec"; g.fillText(n, x + 6, y + 15);
+    });
+  }
+  function mapImg(k) {
+    const key = S.scene + "/" + S.frame + "/" + k;
+    if (!mapImgs[key]) {
+      const im = new Image(); im.onload = () => { if (S.tab === "map") drawMap(); };
+      im.src = "data:image/png;base64," + data[S.scene].frames[S.frame].map[k];
+      mapImgs[key] = im;
+    }
+    return mapImgs[key];
+  }
+  function drawSide(g, k, W, H) {
+    g.fillStyle = "#0e161c"; g.fillRect(0, 0, W, H);
+    g.imageSmoothingEnabled = false;
+    const im = mapImg(k); if (im.complete) g.drawImage(im, 0, 0, W, H);
+    const sx = W / 60, sy = H / 30;
+    g.strokeStyle = COL[k]; g.lineWidth = 1.6;
+    data[S.scene].frames[S.frame].boxes[k].forEach(b => {
+      g.beginPath();
+      b.f.forEach((p, i) => { const x = (p[0] + 30) * sx, y = (15 - p[1]) * sy; i ? g.lineTo(x, y) : g.moveTo(x, y); });
+      g.closePath(); g.stroke();
+    });
+    g.fillStyle = "#fff"; g.fillRect(W / 2 - 14, H / 2 - 6, 28, 12);
+  }
+  function drawMap() {
+    const c = $("mapCanvas"), g = c.getContext("2d"), W = c.width, H = c.height, X = S.split * W;
+    g.save(); g.beginPath(); g.rect(0, 0, X, H); g.clip(); drawSide(g, S.left, W, H); g.restore();
+    g.save(); g.beginPath(); g.rect(X, 0, W - X, H); g.clip(); drawSide(g, S.right, W, H); g.restore();
+    g.fillStyle = "#fff"; g.fillRect(X - 1, 0, 2, H);
+    const nm = k => SOURCES.find(s => s[0] === k)[1];
+    $("mapL").textContent = nm(S.left); $("mapR").textContent = nm(S.right);
+  }
+  function initThree() {
+    if (three) return three;
+    const pane = $("occPane");
+    if (!window.THREE) { $("occStatus").textContent = "The 3D library did not load."; return null; }
+    let r;
+    try { r = new THREE.WebGLRenderer({ antialias: true }); }
+    catch (e) { $("occStatus").textContent = "This browser has WebGL turned off, so the 3D view is unavailable."; return null; }
+    $("occStatus").hidden = true;
+    r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    r.setClearColor(0x0e161c);
+    pane.appendChild(r.domElement);
+    const scene = new THREE.Scene();
+    const cam = new THREE.PerspectiveCamera(45, 2, 0.5, 400);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+    const sun = new THREE.DirectionalLight(0xffffff, 0.75); sun.position.set(-1, -2, 3); scene.add(sun);
+    const ego = new THREE.Mesh(new THREE.BoxGeometry(4.5, 1.9, 1.6), new THREE.MeshLambertMaterial({ color: 0xffffff }));
+    ego.position.set(0, 0, 0.8); scene.add(ego);
+    const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.38, 0.38, 0.38), new THREE.MeshLambertMaterial({ color: 0xffffff }), 60000);
+    mesh.frustumCulled = false; mesh.setColorAt(0, new THREE.Color(0xffffff)); mesh.count = 0; scene.add(mesh);
+    const v = { az: -2.5, el: 0.62, d: 62 };
+    function view() {
+      cam.up.set(0, 0, 1);
+      cam.position.set(v.d * Math.cos(v.el) * Math.cos(v.az), v.d * Math.cos(v.el) * Math.sin(v.az), v.d * Math.sin(v.el));
+      cam.lookAt(6, 0, 0); r.render(scene, cam);
+    }
+    function size() {
+      const w = pane.clientWidth, h = pane.clientHeight; if (!w) return;
+      r.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); view();
+    }
+    new ResizeObserver(size).observe(pane);
+    let drag = null;
+    r.domElement.addEventListener("pointerdown", e => { drag = [e.clientX, e.clientY]; r.domElement.setPointerCapture(e.pointerId); });
+    r.domElement.addEventListener("pointermove", e => {
+      if (!drag) return;
+      v.az -= (e.clientX - drag[0]) * 0.008; v.el = Math.min(1.5, Math.max(0.08, v.el + (e.clientY - drag[1]) * 0.006));
+      drag = [e.clientX, e.clientY]; view();
+    });
+    r.domElement.addEventListener("pointerup", () => { drag = null; });
+    r.domElement.addEventListener("wheel", e => { e.preventDefault(); v.d = Math.min(120, Math.max(15, v.d * (1 + e.deltaY * 0.001))); view(); }, { passive: false });
+    three = { mesh, view, size, colors: OCC.map(o => new THREE.Color(o[1])), m: new THREE.Matrix4() };
+    size();
+    return three;
+  }
+  function drawOcc() {
+    const t = initThree(); if (!t) return;
+    const raw = atob(data[S.scene].frames[S.frame].occ[S.occ]), n = Math.min(raw.length / 4, 60000);
+    for (let i = 0; i < n; i++) {
+      const ix = raw.charCodeAt(i * 4), iy = raw.charCodeAt(i * 4 + 1), iz = raw.charCodeAt(i * 4 + 2), c = raw.charCodeAt(i * 4 + 3);
+      t.m.makeTranslation((ix - 99.5) * 0.4, (iy - 99.5) * 0.4, -0.8 + iz * 0.4);
+      t.mesh.setMatrixAt(i, t.m); t.mesh.setColorAt(i, t.colors[c] || t.colors[8]);
+    }
+    t.mesh.count = n; t.mesh.instanceMatrix.needsUpdate = true;
+    if (t.mesh.instanceColor) t.mesh.instanceColor.needsUpdate = true;
+    t.view();
+  }
+  function draw() {
+    if (!data[S.scene]) return;
+    const f = data[S.scene].frames;
+    $("frameOut").textContent = `${S.frame + 1} / ${f.length} · t = ${(S.frame * 1.5).toFixed(1)} s`;
+    if (S.tab === "cam") drawCams(); else if (S.tab === "map") drawMap(); else drawOcc();
+  }
+  function setTab(t) {
+    S.tab = t;
+    $("camPane").hidden = t !== "cam"; $("mapPane").hidden = t !== "map"; $("occPane").hidden = t !== "occ";
+    document.querySelectorAll("#tabs button").forEach(b => press(b, b.dataset.tab === t));
+    buildSources(); legend(); draw();
+  }
+  function loadFrame() {
+    const im = new Image();
+    im.onload = () => { img = im; $("camStatus").hidden = true; draw(); };
+    im.onerror = () => { $("camStatus").hidden = false; $("camStatus").textContent = "This camera frame did not load."; };
+    im.src = `assets/cams/s${S.scene}_${String(S.frame).padStart(2, "0")}.jpg`;
+    draw();
+  }
+  async function setScene(k) {
+    S.scene = k; mapImgs = {};
+    document.querySelectorAll("#scenes button").forEach((b, i) => press(b, i === k));
+    if (!data[k]) {
+      $("camStatus").hidden = false; $("camStatus").textContent = "Loading scene…";
+      try { data[k] = await (await fetch(`assets/scene_${k}.json`)).json(); }
+      catch (e) { $("camStatus").textContent = "This scene did not load. Reload the page to try again."; return; }
+    }
+    const n = data[k].frames.length;
+    $("frame").max = n - 1; S.frame = Math.min(S.frame, n - 1); $("frame").value = S.frame;
+    for (let j = 0; j < n; j++) { new Image().src = `assets/cams/s${k}_${String(j).padStart(2, "0")}.jpg`; }
+    loadFrame();
+  }
+  function stop() { clearInterval(S.timer); S.timer = null; $("play").textContent = "Play"; press($("play"), false); }
+  $("play").onclick = () => {
+    if (S.timer) return stop();
+    $("play").textContent = "Pause"; press($("play"), true);
+    S.timer = setInterval(() => {
+      S.frame = (S.frame + 1) % data[S.scene].frames.length; $("frame").value = S.frame; mapImgs = {}; loadFrame();
+    }, 900);
+  };
+  $("frame").oninput = e => { stop(); S.frame = +e.target.value; mapImgs = {}; loadFrame(); };
+  document.querySelectorAll("#tabs button").forEach(b => { b.onclick = () => setTab(b.dataset.tab); });
+  const pane = $("mapPane");
+  const slide = e => { const r = pane.getBoundingClientRect(); S.split = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)); drawMap(); };
+  let dragging = false;
+  pane.addEventListener("pointerdown", e => { dragging = true; pane.setPointerCapture(e.pointerId); slide(e); });
+  pane.addEventListener("pointermove", e => { if (dragging) slide(e); });
+  pane.addEventListener("pointerup", () => { dragging = false; });
+  (async () => {
+    try { index = await (await fetch("assets/index.json")).json(); }
+    catch (e) { $("camStatus").textContent = "The viewer data did not load. Reload the page to try again."; return; }
+    index.forEach((s, i) => {
+      const b = document.createElement("button"); b.textContent = s.label; b.onclick = () => setScene(i); $("scenes").appendChild(b);
+    });
+    setTab("cam"); setScene(0);
+  })();
+})();
+</script>
+</body>
+</html>
